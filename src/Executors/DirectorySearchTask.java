@@ -1,6 +1,8 @@
 package Executors;
 
+import Utilities.ComputedFile;
 import Utilities.FilePath;
+import Utilities.LongRange;
 import Utilities.Pair;
 
 import java.io.File;
@@ -10,12 +12,15 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 
-public class DirectorySearchTask extends RecursiveTask<List<Pair<FilePath, Long>>> {
+public class DirectorySearchTask extends RecursiveTask<List<ComputedFile>> {
 
     private final String directory;
-    public DirectorySearchTask(String d) {
+    private final List<LongRange> ranges;
+
+    public DirectorySearchTask(String directory, List<LongRange> ranges) {
         super();
-        directory = d;
+        this.directory = directory;
+        this.ranges = ranges;
     }
 
     private Set<String> getSubDirectory() {
@@ -43,32 +48,32 @@ public class DirectorySearchTask extends RecursiveTask<List<Pair<FilePath, Long>
 
 
     @Override
-    protected List<Pair<FilePath, Long>> compute() {
-        List<Pair<FilePath, Long>> files = new ArrayList<>();
-        List<RecursiveTask<List<Pair<FilePath, Long>>>> dirForks = new LinkedList<>();
+    protected List<ComputedFile> compute() {
+        List<ComputedFile> files = new ArrayList<>();
+        List<RecursiveTask<List<ComputedFile>>> dirForks = new LinkedList<>();
         Set<String> subDirectories = getSubDirectory();
         if (subDirectories != null) {
             for (String subDirectory : subDirectories) {
-                DirectorySearchTask task = new DirectorySearchTask(subDirectory);
+                DirectorySearchTask task = new DirectorySearchTask(subDirectory, ranges);
                 dirForks.add(task);
                 task.fork();
             }
         }
 
-        List<RecursiveTask<Pair<FilePath, Long>>> fileForks = new LinkedList<>();
+        List<RecursiveTask<ComputedFile>> fileForks = new LinkedList<>();
         Set<String> dirFiles = getJavaSourceFiles(directory);
         if ( dirFiles != null) {
             for (String file: dirFiles) {
-                FileLengthTask task = new FileLengthTask(new FilePath(directory, file));
+                FileLengthTask task = new FileLengthTask(new FilePath(directory, file), ranges);
                 fileForks.add(task);
                 task.fork();
             }
         }
 
-        for (RecursiveTask<List<Pair<FilePath, Long>>> task : dirForks) {
+        for (RecursiveTask<List<ComputedFile>> task : dirForks) {
             files.addAll(task.join());
         }
-        for (RecursiveTask<Pair<FilePath, Long>> task : fileForks) {
+        for (RecursiveTask<ComputedFile> task : fileForks) {
             files.add(task.join());
         }
         return files;
